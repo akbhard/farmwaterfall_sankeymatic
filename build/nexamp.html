@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1">
+<title>Nexamp Farm Waterfall</title>
+<link rel="stylesheet" href="build.css">
+<script defer src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/canvg@3/lib/umd.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
+<script defer src="constants.js"></script>
+<script defer src="sankey.js"></script>
+<script defer src="lz-string.min.js"></script>
+<script defer src="sankeymatic.js"></script>
+<script defer src="nexamp-app.js"></script>
+<style>
+  /* Custom styles for Nexamp Farm Waterfall */
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: #f5f5f5;
+  }
+
+  .nexamp-header {
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    color: white;
+    padding: 1.5rem 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  .nexamp-header h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 600;
+  }
+
+  /* Upload Screen */
+  #upload-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 200px);
+    padding: 2rem;
+  }
+
+  .upload-container {
+    background: white;
+    border-radius: 12px;
+    padding: 3rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+  }
+
+  .upload-container h2 {
+    color: #1e3a8a;
+    margin-bottom: 1rem;
+  }
+
+  .upload-container p {
+    color: #6b7280;
+    margin-bottom: 2rem;
+  }
+
+  .upload-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .upload-btn:hover {
+    background: #2563eb;
+  }
+
+  .file-input {
+    display: none;
+  }
+
+  /* Visualization Screen */
+  #visualization-screen {
+    display: none;
+    height: 100vh;
+    flex-direction: column;
+  }
+
+  .controls-bar {
+    background: white;
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .controls-bar label {
+    font-weight: 500;
+    color: #374151;
+  }
+
+  .utility-select {
+    padding: 0.5rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    min-width: 200px;
+    cursor: pointer;
+  }
+
+  .new-upload-btn {
+    background: #6b7280;
+    color: white;
+    border: none;
+    padding: 0.5rem 1.25rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    margin-left: auto;
+  }
+
+  .new-upload-btn:hover {
+    background: #4b5563;
+  }
+
+  .diagram-container {
+    flex: 1;
+    overflow: auto;
+    background: white;
+    position: relative;
+    display: flex;
+    align-items: flex-start; /* Changed from center to allow scrolling from top */
+    justify-content: center;
+    min-height: 0; /* Important for flexbox height calculation */
+  }
+
+  /* Hide everything except the chart */
+  .center_basic {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  #skm_form {
+    width: 100%;
+    height: 100%;
+  }
+
+  .skm_grid {
+    width: 100%;
+    height: 100%;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #chart {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 1rem 2rem !important;
+  }
+
+  #sankey_svg {
+    max-width: 100% !important;
+    max-height: 100% !important;
+  }
+
+  /* Loading state */
+  .loading {
+    text-align: center;
+    padding: 2rem;
+    color: #6b7280;
+  }
+
+  /* Error message */
+  .error-message {
+    background: #fee2e2;
+    color: #991b1b;
+    padding: 1rem;
+    border-radius: 6px;
+    margin: 1rem 0;
+  }
+
+  /* Hide all the elements we don't need but SankeyMATIC requires */
+  .hidden_under,
+  #svg_scratch,
+  #png_preview {
+    display: none !important;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="nexamp-header">
+  <h1>Nexamp Farm Waterfall</h1>
+</div>
+
+<!-- Upload Screen -->
+<div id="upload-screen">
+  <div class="upload-container">
+    <h2>Welcome</h2>
+    <p>Upload your farm waterfall data file (CSV or Excel) to visualize revenue performance across utilities.</p>
+    <button class="upload-btn" onclick="document.getElementById('file-input').click()">
+      Upload Data File
+    </button>
+    <input
+      type="file"
+      id="file-input"
+      class="file-input"
+      accept=".csv,.xlsx,.xls"
+      onchange="handleFileUpload(event)"
+    />
+    <div id="upload-error" class="error-message" style="display: none;"></div>
+  </div>
+</div>
+
+<!-- Visualization Screen -->
+<div id="visualization-screen">
+  <div class="controls-bar">
+    <label for="utility-select">Select Utility:</label>
+    <select id="utility-select" class="utility-select" onchange="handleUtilityChange()">
+      <option value="">-- Select a Utility --</option>
+    </select>
+    <button class="new-upload-btn" onclick="startNewSession()">Upload New File</button>
+  </div>
+
+  <div class="diagram-container">
+    <div class="center_basic">
+      <form id="skm_form" onsubmit="process_sankey(); return false;">
+        <div class="skm_grid">
+
+          <!-- Required SankeyMATIC elements (must remain hidden) -->
+          <div style="display: none;">
+            <!-- Inputs textarea -->
+            <div id="input_options">
+              <textarea id="flows_in" rows="19" cols="40"></textarea>
+            </div>
+
+            <!-- Message areas -->
+            <div id="top_messages_container">
+              <div id="info_messages"></div>
+              <div id="issue_messages"></div>
+            </div>
+            <div id="totals_area"></div>
+            <div id="console_area">
+              <div id="console_lines"></div>
+            </div>
+            <div id="imbalance_messages"></div>
+
+            <!-- All form inputs from original -->
+            <input id="size_w" type="number" value="1800" onchange="process_sankey();">
+            <input id="size_h" type="number" value="800" onchange="process_sankey();">
+            <input id="margin_l" type="number" value="150" onchange="process_sankey();">
+            <input id="margin_r" type="number" value="150" onchange="process_sankey();">
+            <input id="margin_t" type="number" value="40" onchange="process_sankey();">
+            <input id="margin_b" type="number" value="40" onchange="process_sankey();">
+            <input id="bg_color" type="color" value="#f9fafb" onchange="process_sankey();">
+            <input type="checkbox" id="bg_transparent" onchange="process_sankey();">
+            <input id="node_w" type="number" value="8" onchange="process_sankey();">
+            <input id="node_h" type="range" value="37.5" onchange="process_sankey();">
+            <input id="node_spacing" type="range" value="85" onchange="process_sankey();">
+            <input id="node_border" type="number" value="0" onchange="process_sankey();">
+            <input type="radio" name="node_theme" id="node_theme_a" value="a" onchange="process_sankey();">
+            <input type="radio" name="node_theme" id="node_theme_b" value="b" onchange="process_sankey();">
+            <input type="radio" name="node_theme" id="node_theme_c" value="c" onchange="process_sankey();">
+            <input type="radio" name="node_theme" id="node_theme_d" value="d" onchange="process_sankey();">
+            <input type="radio" name="node_theme" id="node_theme_none" value="none" checked="checked" onchange="process_sankey();">
+            <input id="node_color" type="color" value="#888888" onchange="process_sankey();">
+            <input id="node_opacity" type="range" value="1.0" onchange="process_sankey();">
+            <input id="flow_curvature" type="range" value="0.5" onchange="process_sankey();">
+            <input type="radio" name="flow_inheritfrom" id="flow_inheritfrom_source" value="source" onchange="process_sankey();">
+            <input type="radio" name="flow_inheritfrom" id="flow_inheritfrom_target" value="target" onchange="process_sankey();">
+            <input type="radio" name="flow_inheritfrom" id="flow_inheritfrom_outsidein" value="outside-in" onchange="process_sankey();">
+            <input type="radio" name="flow_inheritfrom" id="flow_inheritfrom_none" value="none" checked="checked" onchange="process_sankey();">
+            <input id="flow_color" type="color" value="#999999" onchange="process_sankey();">
+            <input id="flow_opacity" type="range" value="0.45" onchange="process_sankey();">
+            <input type="radio" name="layout_order" id="layout_order_automatic" value="automatic" onchange="process_sankey();">
+            <input type="radio" name="layout_order" id="layout_order_exact" value="exact" checked="checked" onchange="process_sankey();">
+            <input type="checkbox" id="layout_justifyorigins" onchange="process_sankey();">
+            <input type="checkbox" id="layout_justifyends" onchange="process_sankey();">
+            <input type="checkbox" id="layout_reversegraph" onchange="process_sankey();">
+            <input type="radio" name="layout_attachincompletesto" id="layout_attachto_leading" value="leading" onchange="process_sankey();">
+            <input type="radio" name="layout_attachincompletesto" id="layout_attachto_nearest" value="nearest" checked="checked" onchange="process_sankey();">
+            <input type="radio" name="layout_attachincompletesto" id="layout_attachto_trailing" value="trailing" onchange="process_sankey();">
+            <input id="labels_color" type="color" value="#000000" onchange="process_sankey();">
+            <input type="checkbox" id="labels_hide" onchange="process_sankey();">
+            <input id="labels_highlight" type="range" value="0.75" onchange="process_sankey();">
+            <input type="radio" name="labels_fontface" id="labels_fontface_monospace" value="monospace" onchange="process_sankey();">
+            <input type="radio" name="labels_fontface" id="labels_fontface_sansserif" value="sans-serif" checked="checked" onchange="process_sankey();">
+            <input type="radio" name="labels_fontface" id="labels_fontface_serif" value="serif" onchange="process_sankey();">
+            <input id="labels_linespacing" type="range" value="0.15" onchange="process_sankey();">
+            <input id="labels_relativesize" type="range" value="100" onchange="process_sankey();">
+            <input id="labels_magnify" type="range" value="100" onchange="process_sankey();">
+            <input type="checkbox" id="labelname_appears" checked="checked" onchange="process_sankey();">
+            <input id="labelname_size" type="number" value="16" onchange="process_sankey();">
+            <input id="labelname_weight" type="range" value="400" onchange="process_sankey();">
+            <input type="checkbox" id="labelvalue_appears" checked="checked" onchange="process_sankey();">
+            <input type="checkbox" id="labelvalue_fullprecision" checked="checked" onchange="process_sankey();">
+            <input type="radio" name="labelvalue_position" id="labelvalue_position_above" value="above" onchange="process_sankey();">
+            <input type="radio" name="labelvalue_position" id="labelvalue_position_before" value="before" onchange="process_sankey();">
+            <input type="radio" name="labelvalue_position" id="labelvalue_position_after" value="after" onchange="process_sankey();">
+            <input type="radio" name="labelvalue_position" id="labelvalue_position_below" value="below" checked="checked" onchange="process_sankey();">
+            <input id="labelvalue_weight" type="range" value="400" onchange="process_sankey();">
+            <input id="labelposition_autoalign" type="range" value="0" onchange="process_sankey();">
+            <input type="radio" name="labelposition_scheme" id="labelposition_scheme_auto" value="auto" checked="checked" onchange="process_sankey();">
+            <input type="radio" name="labelposition_scheme" id="labelposition_scheme_perstage" value="per_stage" onchange="process_sankey();">
+            <input type="radio" name="labelposition_first" id="labelposition_first_before" value="before" checked="checked" onchange="process_sankey();">
+            <input type="radio" name="labelposition_first" id="labelposition_first_after" value="after" onchange="process_sankey();">
+            <input id="labelposition_breakpoint" type="range" value="9999" onchange="process_sankey();">
+            <select id="value_format" onchange="process_sankey();">
+              <option value=",." selected="selected">1,000,000.00</option>
+              <option value=".,">1.000.000,00</option>
+              <option value=" .">1 000 000.00</option>
+              <option value=" ,">1 000 000,00</option>
+              <option value="X.">1000000.00</option>
+              <option value="X,">1000000,00</option>
+            </select>
+            <input id="value_prefix" type="text" value="$" onchange="process_sankey();">
+            <input id="value_suffix" type="text" value="" onchange="process_sankey();">
+            <input id="themeoffset_a" type="number" value="9" onchange="process_sankey();">
+            <input id="themeoffset_b" type="number" value="0" onchange="process_sankey();">
+            <input id="themeoffset_c" type="number" value="0" onchange="process_sankey();">
+            <input id="themeoffset_d" type="number" value="0" onchange="process_sankey();">
+            <input type="checkbox" id="meta_mentionsankeymatic" onchange="process_sankey();">
+            <input type="checkbox" id="meta_listimbalances" checked="checked" onchange="process_sankey();">
+            <input id="internal_iterations" type="number" value="25">
+            <input type="checkbox" id="internal_revealshadows">
+
+            <!-- PNG download buttons (not used but required by SankeyMATIC) -->
+            <button id="save_as_png_1x"></button>
+            <button id="save_as_png_2x"></button>
+            <button id="save_as_png_4x"></button>
+            <button id="save_as_png_6x"></button>
+
+            <!-- Theme display elements (not used but required by SankeyMATIC) -->
+            <div id="theme_a_guide"></div>
+            <div id="theme_a_label"></div>
+            <div id="theme_b_guide"></div>
+            <div id="theme_b_label"></div>
+            <div id="theme_c_guide"></div>
+            <div id="theme_c_label"></div>
+            <div id="theme_d_guide"></div>
+            <div id="theme_d_label"></div>
+          </div>
+
+          <!-- The visible chart area -->
+          <p id="chart">
+            <svg id="svg_scratch" height="600" width="600" xmlns="http://www.w3.org/2000/svg" class="hidden_under"></svg>
+            <svg id="sankey_svg" height="600" width="600" xmlns="http://www.w3.org/2000/svg"></svg>
+          </p>
+          <canvas id="png_preview" height="600" width="600" style="background-color: transparent; display: none;"></canvas>
+
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
