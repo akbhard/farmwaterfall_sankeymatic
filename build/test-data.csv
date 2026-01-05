@@ -1,0 +1,18 @@
+Utility,Source,Target,Value
+Eversource,Modeled Revenue Cycle,Invoice Total,850000
+Eversource,Modeled Revenue Cycle,Weather Insolation Loss,50000
+Eversource,Modeled Revenue Cycle,Outage Dollar Loss,30000
+Eversource,Modeled Revenue Cycle,Nexamp vs Utility Dollar Flow Loss,25000
+Eversource,Modeled Revenue Cycle,Unmonetized Utility vs Transferred Dollar Flow Loss,20000
+Eversource,Modeled Revenue Cycle,Unmonetized Credits vs Revenue Dollar Flow Loss,15000
+Eversource,Modeled Revenue Cycle,Modeled vs Monetized Rate Dollar Flow Loss,10000
+Eversource,Invoice Total,Payment Total,800000
+Eversource,Invoice Total,Loss from Credit Memos & Courtesy Credits,35000
+Eversource,Invoice Total,Loss from Uncollectables,15000
+National Grid,Modeled Revenue Cycle,Invoice Total,920000
+National Grid,Modeled Revenue Cycle,Weather Insolation Loss,40000
+National Grid,Modeled Revenue Cycle,Outage Dollar Loss,25000
+National Grid,Modeled Revenue Cycle,Nexamp vs Utility Dollar Flow Loss,15000
+National Grid,Invoice Total,Payment Total,880000
+National Grid,Invoice Total,Loss from Credit Memos & Courtesy Credits,30000
+National Grid,Invoice Total,Loss from Uncollectables,10000
